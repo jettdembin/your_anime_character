@@ -1,3 +1,4 @@
+import Providers from "@/util/providers";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -20,7 +21,7 @@ export default function RootLayout({
         <nav>
           <h1>Your Anime Character</h1>
         </nav>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

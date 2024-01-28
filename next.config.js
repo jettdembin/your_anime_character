@@ -1,4 +1,4 @@
-import ForkTsCheckerWebpackPlugin from "fork-ts-checker-webpack-plugin";
+const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -39,5 +39,4 @@ const nextConfig = {
     // ],
   },
 };
-
-export default nextConfig;
+module.exports = nextConfig;
