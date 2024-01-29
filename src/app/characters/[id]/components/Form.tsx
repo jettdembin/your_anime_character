@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import OpenAI from "openai";
+import { useEffect, useRef, useState } from "react";
 
 import { useQuery } from "@apollo/client";
 
@@ -18,7 +16,7 @@ interface OpenAIChatMessage {
   content: string;
 }
 
-export default function Form({ id }: any) {
+export default function Form({ id, firstMessage }: any) {
   const { error, loading, data } = useQuery(GET_CHARACTER, {
     variables: { id },
   });
@@ -30,8 +28,10 @@ export default function Form({ id }: any) {
     // Add user message to chat
     setMessages((msgs) => [...msgs, { role: "user", content: input }]);
 
-    // Call OpenAI API
-    const openai = new OpenAI({ apiKey: process.env.OPEN_AI_TOKEN }); // Ensure you have appropriate API key setup
+    // // Call OpenAI API
+    // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); // Ensure you have appropriate API key setup
+
+    // const data = await fetch("/api/characters", {}).then((res) => res.json());
 
     // Transform messages to the type expected by OpenAI's API
     const openAIMessages: any = messages.map((msg) => ({
@@ -39,15 +39,30 @@ export default function Form({ id }: any) {
       content: msg.content,
     }));
 
+    // try {
+    //   const completion = await openai.chat.completions.create({
+    //     messages: [...openAIMessages, { role: "user", content: input }],
+    //     model: "gpt-3.5-turbo",
+    //   });
+
+    //   // ... rest of your code
+    // } catch (error) {
+    //   // ... error handling
+    // }
     try {
-      const completion = await openai.chat.completions.create({
-        messages: [...openAIMessages, { role: "user", content: input }],
-        model: "gpt-3.5-turbo",
+      const response = await fetch("/api/characters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [...openAIMessages, { role: "user", content: input }],
+        }),
       });
 
-      // ... rest of your code
+      const data = await response.json();
+      const recentRespone = data.choices[0].message;
+      setMessages((msgs) => [...msgs, recentRespone]);
     } catch (error) {
-      // ... error handling
+      // ... handle any errors ...
     }
   };
 
@@ -57,32 +72,57 @@ export default function Form({ id }: any) {
     setUserInput(""); // Clear input field
   };
 
+  const isFirstMount = useRef(true);
   useEffect(() => {
-    if (data) {
+    if (data && isFirstMount.current) {
       const { Character } = data;
-      const { name, image, description } = Character;
+      const { name, description } = Character; // Removed 'image' as it's not used in your current code
 
       const animeTitle = Character?.media?.nodes[0]?.title?.english;
 
       const htmlToText = (html: any) => {
-        // Create a new div element
         const tempDivElement = document.createElement("div");
-
-        // Set the HTML content with the provided
         tempDivElement.innerHTML = html;
-
-        // Retrieve the text property of the element (cross-browser support)
         return tempDivElement.textContent || tempDivElement.innerText || "";
       };
+
       const characterDescription = htmlToText(description);
 
-      const initialAIPrompt = `You are a character from the anime, ${animeTitle} and your name is ${name.full}. ${characterDescription}. Now greet, act and converse with the user like you are ${name.full}.`;
+      const initialAIPrompt = `You are a character from the anime ${animeTitle}, and your name is ${name.full}. ${characterDescription}. Now greet, act and converse with the user as if you are ${name.full}.`;
 
-      console.log(data);
-      // Initialize conversation with system message
-      setMessages([{ role: "system", content: initialAIPrompt }]);
+      const fetchAPI = async () => {
+        try {
+          const response = await fetch("/api/characters", {
+            // Adjusted URL to a more typical Next.js API route
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: [{ role: "system", content: initialAIPrompt }],
+            }),
+          });
+
+          const apiData = await response.json();
+          const recentRespone = apiData.choices[0].message.content;
+          setMessages((msgs) => [
+            ...msgs,
+            { role: "assistant", content: recentRespone }, // Make sure the 'message' property exists in your API response
+          ]);
+          debugger;
+          isFirstMount.current = false;
+        } catch (error) {
+          console.error("Error fetching data: ", error);
+          setMessages((msgs) => [
+            ...msgs,
+            { role: "assistant", content: "Error fetching character data." },
+          ]);
+          debugger;
+        }
+      };
+
+      fetchAPI();
     }
   }, [data]);
+
   if (loading) return "loading...";
   if (error) {
     console.log(error, "error");

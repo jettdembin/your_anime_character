@@ -20,6 +20,9 @@ const nextConfig = {
 
     return config;
   },
+  env: {
+    BASE_URL: process.env.BASE_URL,
+  },
   images: {
     domains: [
       "media.kitsu.io",
